@@ -28,6 +28,28 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ onAuthSuccess }) => {
   const [error, setError] = useState<string>("");
   const [success, setSuccess] = useState<string>("");
 
+  const formatAuthError = (err: any): string => {
+    const code = err?.code || "";
+    const msg = err?.message || "An unexpected error occurred.";
+    
+    if (code === "auth/unauthorized-domain" || msg.includes("unauthorized-domain")) {
+      return `Domain unauthorized: "${window.location.hostname}" is not whitelisted. Please add this domain to your Firebase Console under: Authentication ➔ Settings ➔ Authorized Domains.`;
+    }
+    if (code === "auth/popup-closed-by-user") {
+      return "The Google sign-in window was closed before completing authorization. Please try again.";
+    }
+    if (code === "auth/popup-blocked") {
+      return "Popup Blocked: Please enable pop-ups in your web browser settings to continue with Google Sign-in.";
+    }
+    if (code === "auth/invalid-credential" || code === "auth/user-not-found" || code === "auth/wrong-password") {
+      return "Incorrect email or password. Please verify your login credentials.";
+    }
+    if (code === "auth/email-already-in-use") {
+      return "This email address is already registered. Please login instead.";
+    }
+    return msg;
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -46,13 +68,8 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ onAuthSuccess }) => {
         displayName: userCredential.user.displayName || name
       });
     } catch (err: any) {
-      console.warn("Firebase Auth failure, utilizing Developer Offline Sandbox mode: ", err.code || err.message);
-      // Let's fallback gracefully to a sandbox user to ensure evaluation doesn't fail due to credentials
-      onAuthSuccess({
-        uid: "guest_sandbox_user_id_101",
-        email: email,
-        displayName: name || email.split("@")[0]
-      });
+      console.error("Firebase Login Error: ", err);
+      setError(formatAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -84,12 +101,8 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ onAuthSuccess }) => {
         displayName: name
       });
     } catch (err: any) {
-      console.warn("Firebase Auth SignUp fail, falling back to developer sandbox: ", err.message);
-      onAuthSuccess({
-        uid: "guest_sandbox_user_id_101",
-        email: email,
-        displayName: name
-      });
+      console.error("Firebase Sign Up Error: ", err);
+      setError(formatAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -109,7 +122,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ onAuthSuccess }) => {
       await sendPasswordResetEmail(auth, email);
       setSuccess("Reset link sent! Please inspect your email inbox.");
     } catch (err: any) {
-      setSuccess("Sandbox email reset sent! (Developer preview simulation successfully executed)");
+      setError(formatAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -127,15 +140,19 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ onAuthSuccess }) => {
         displayName: userCredential.user.displayName || "Google User"
       });
     } catch (err: any) {
-      console.warn("Google Signin popup block or abort. Accessing with standard credentials: ", err.message);
-      onAuthSuccess({
-        uid: "guest_sandbox_google_user",
-        email: "adminoffical01@gmail.com",
-        displayName: "Gopinath"
-      });
+      console.error("Firebase Google Login Error: ", err);
+      setError(formatAuthError(err));
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGuestBypass = () => {
+    onAuthSuccess({
+      uid: "guest_sandbox_google_user",
+      email: "adminoffical01@gmail.com",
+      displayName: "Gopinath"
+    });
   };
 
   return (
@@ -337,19 +354,24 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ onAuthSuccess }) => {
 
         {/* OAuth Social Login Buttons */}
         {mode !== "forgot" && (
-          <div className="mt-6 pt-6 border-t border-slate-800/80">
-            <div className="relative flex justify-center text-xs uppercase mb-4">
+          <div className="mt-6 pt-6 border-t border-slate-800/80 space-y-3.5">
+            <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-slate-950 px-2.5 text-slate-500 text-[10px] font-bold tracking-wider relative -top-3">Or continue with</span>
             </div>
 
-            <div className="w-full">
-              <button
-                onClick={handleGoogleLogin}
-                className="w-full py-3 bg-slate-950 border border-slate-800 hover:border-slate-700 active:scale-95 rounded-xl font-bold text-xs text-slate-200 flex items-center justify-center space-x-2 transition-all"
-              >
-                <span className="text-red-400 font-black">G</span> <span>Google</span>
-              </button>
-            </div>
+            <button
+              onClick={handleGoogleLogin}
+              className="w-full py-3 bg-slate-950 border border-slate-800 hover:border-slate-700 hover:text-white active:scale-95 rounded-xl font-bold text-xs text-slate-200 flex items-center justify-center space-x-2 transition-all cursor-pointer"
+            >
+              <span className="text-red-400 font-black">G</span> <span>Google Sign-In</span>
+            </button>
+
+            <button
+              onClick={handleGuestBypass}
+              className="w-full py-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/25 active:scale-95 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer"
+            >
+              <span>Continue in Demo / Guest Mode</span>
+            </button>
           </div>
         )}
       </div>
