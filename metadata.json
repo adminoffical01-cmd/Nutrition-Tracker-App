@@ -1,0 +1,6 @@
+{
+  "name": "NutriFit AI",
+  "description": "AI-Powered Nutrition & Fitness Tracker for Indian Cuisines & Workouts",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
